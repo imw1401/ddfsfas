@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>수행평가 점수 확인</title>
+<style>
+  body { font-family: 'Malgun Gothic', sans-serif; background: #f4f7f6; margin: 0; padding: 20px; text-align: center; }
+  .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  input, button, select { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 16px; }
+  button { background: #007bff; color: white; cursor: pointer; border: none; }
+  button:hover { background: #0056b3; }
+  .hidden { display: none; }
+  table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+  th { background: #f8f9fa; }
+  td input { width: 90%; padding: 5px; margin: 0; box-sizing: border-box; }
+  .success-msg { color: #28a745; font-weight: bold; margin-top: 10px; display: none; }
+  @media (max-width: 600px) { table { font-size: 12px; } td input { font-size: 12px; } }
+</style>
+</head>
+<body>
+
+<div class="container" id="mainMenu">
+  <h2>수행평가 점수 확인 시스템</h2>
+  <button onclick="showSection('studentLogin')">학생용 모드</button>
+  <button onclick="showSection('teacherLogin')" style="background:#6c757d;">교사용 모드</button>
+</div>
+
+<!-- 학생 로그인 -->
+<div class="container hidden" id="studentLogin">
+  <h2>학생 로그인</h2>
+  <input type="text" id="studentId" placeholder="학번 (예: 30101)"><br>
+  <input type="password" id="studentPw" placeholder="비밀번호"><br>
+  <button onclick="studentLogin()">로그인</button>
+  <button onclick="showSection('mainMenu')">뒤로</button>
+</div>
+
+<!-- 학생 점수 조회 -->
+<div class="container hidden" id="studentView">
+  <h2>내 점수 확인</h2>
+  <p id="studentInfo"></p>
+  <table>
+    <thead>
+      <tr><th>수행평가명</th><th>내 점수</th><th>반 평균</th><th>학년 평균</th><th>피드백</th></tr>
+    </thead>
+    <tbody id="studentScoreBody"></tbody>
+  </table>
+  <button onclick="showSection('mainMenu')">로그아웃</button>
+</div>
+
+<!-- 교사 로그인 -->
+<div class="container hidden" id="teacherLogin">
+  <h2>교사 로그인</h2>
+  <input type="password" id="teacherPw" placeholder="교사 비밀번호 (기본: 1234)"><br>
+  <button onclick="teacherLogin()">로그인</button>
+  <button onclick="showSection('mainMenu')">뒤로</button>
+</div>
+
+<!-- 교사 관리 페이지 -->
+<div class="container hidden" id="teacherView">
+  <h2>교사용 점수 입력</h2>
+  <select id="gradeSelect" onchange="loadGradeSettings()">
+    <option value="2">2학년</option>
+    <option value="3">3학년</option>
+  </select>
+  
+  <div style="margin: 15px 0; background: #e9ecef; padding: 10px; border-radius: 5px;">
+    <strong>수행평가 이름 설정</strong><br>
+    <input type="text" id="sub1_name" value="">
+    <input type="text" id="sub2_name" value="">
+    <input type="text" id="sub3_name" value="">
+  </div>
+
+  <p style="font-size: 14px; color: #555;">💡 엑셀에서 [번호, 이름, 점수1, 점수2, 점수3, 피드백] 영역을 복사한 뒤, 1번 학생의 번호 칸을 클릭하고 <b>Ctrl+V</b>를 누르세요.</p>
+  
+  <div style="overflow-x: auto;">
+    <table id="scoreTable">
+      <thead>
+        <tr>
+          <th>번호</th><th>이름</th>
+          <th id="th_sub1">수행1</th><th id="th_sub2">수행2</th><th id="th_sub3">수행3</th>
+          <th>피드백</th>
+        </tr>
+      </thead>
+      <tbody id="teacherTableBody">
+        <!-- 35명 행이 스크립트로 생성됩니다 -->
+      </tbody>
+    </table>
+  </div>
+  
+  <button onclick="saveData()" style="width: 100%; margin-top: 15px; font-size: 18px;">일괄 저장하기</button>
+  <div class="success-msg" id="saveSuccess">✅ 완료 (데이터가 일괄 저장되었습니다)</div>
+  <br><button onclick="showSection('mainMenu')" style="background:#6c757d; margin-top:10px;">로그아웃</button>
+</div>
+
+<script>
+  // 기본 설정
+  const defaultSubjects = {
+    "2": ["산업혁명", "제자백가", "포트폴리오"],
+    "3": ["가상 토론", "노래 제작", "카드뉴스 제작"]
+  };
+
+  function showSection(id) {
+    document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    document.getElementById('saveSuccess').style.display = 'none';
+  }
+
+  function teacherLogin() {
+    if (document.getElementById('teacherPw').value === '1234') { // 실제 환경에서는 복잡한 비밀번호 권장
+      document.getElementById('teacherPw').value = '';
+      showSection('teacherView');
+      loadGradeSettings();
+      generateTeacherTable();
+    } else {
+      alert('비밀번호가 틀렸습니다.');
+    }
+  }
+
+  function loadGradeSettings() {
+    const grade = document.getElementById('gradeSelect').value;
+    document.getElementById('sub1_name').value = defaultSubjects[grade][0];
+    document.getElementById('sub2_name').value = defaultSubjects[grade][1];
+    document.getElementById('sub3_name').value = defaultSubjects[grade][2];
+    
+    document.getElementById('sub1_name').oninput = () => document.getElementById('th_sub1').innerText = document.getElementById('sub1_name').value;
+    document.getElementById('sub2_name').oninput = () => document.getElementById('th_sub2').innerText = document.getElementById('sub2_name').value;
+    document.getElementById('sub3_name').oninput = () => document.getElementById('th_sub3').innerText = document.getElementById('sub3_name').value;
+    
+    document.getElementById('th_sub1').innerText = defaultSubjects[grade][0];
+    document.getElementById('th_sub2').innerText = defaultSubjects[grade][1];
+    document.getElementById('th_sub3').innerText = defaultSubjects[grade][2];
+  }
+
+  function generateTeacherTable() {
+    const tbody = document.getElementById('teacherTableBody');
+    tbody.innerHTML = '';
+    for (let i = 1; i <= 35; i++) {
+      let tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" value="${i}" class="col-0"></td>
+        <td><input type="text" class="col-1"></td>
+        <td><input type="number" class="col-2"></td>
+        <td><input type="number" class="col-3"></td>
+        <td><input type="number" class="col-4"></td>
+        <td><input type="text" class="col-5"></td>
+      `;
+      tbody.appendChild(tr);
+    }
+    
+    // 엑셀 붙여넣기 로직
+    tbody.addEventListener('paste', function(e) {
+      e.preventDefault();
+      const paste = (e.clipboardData || window.clipboardData).getData('text');
+      const rows = paste.split('\n');
+      const targetElement = e.target;
+      const startRowIndex = targetElement.closest('tr').rowIndex - 1; 
+      const startColIndex = parseInt(targetElement.className.replace('col-', ''));
+
+      rows.forEach((row, rIdx) => {
+        if (!row.trim()) return;
+        const cols = row.split('\t');
+        const tr = tbody.rows[startRowIndex + rIdx];
+        if (tr) {
+          cols.forEach((colData, cIdx) => {
+            const input = tr.querySelector(`.col-${startColIndex + cIdx}`);
+            if (input) input.value = colData.trim();
+          });
+        }
+      });
+    });
+  }
+
+  function saveData() {
+    // 실제 운영 시 이곳에 Firebase나 Google Sheets API 저장 코드를 작성합니다.
+    document.getElementById('saveSuccess').style.display = 'block';
+    setTimeout(() => {
+      document.getElementById('saveSuccess').style.display = 'none';
+    }, 3000);
+  }
+
+  function studentLogin() {
+    const id = document.getElementById('studentId').value;
+    if (id) {
+      showSection('studentView');
+      document.getElementById('studentInfo').innerText = `학번: ${id} 환영합니다.`;
+      
+      const grade = id.charAt(0) === '3' ? "3" : "2"; // 학번 첫 자리로 학년 구분 임시 로직
+      
+      const tbody = document.getElementById('studentScoreBody');
+      tbody.innerHTML = `
+        <tr><td>${defaultSubjects[grade][0]}</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+        <tr><td>${defaultSubjects[grade][1]}</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+        <tr><td>${defaultSubjects[grade][2]}</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+      `;
+    } else {
+      alert('학번을 입력해주세요.');
+    }
+  }
+</script>
+</body>
+</html>
