@@ -106,7 +106,7 @@
 
 <script>
   // ★★★ 아래 따옴표 안에 발급받은 웹 앱 URL을 반드시 붙여넣으세요! ★★★
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzkvQ3PU-1HdvH8csEntKMG5WjiFOQ7BflvtOrX4llwYGwYz2_l5FQbM6dJcgarmPdXuA/exec";
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby82zXjao_yzyU4gmLix2wwPO2_DOommwMku-YBTsL9_DR6O5WYztxxF47f0PO9_M9clg/exec";
 
   const defaultSubjects = {
     "2": ["산업혁명", "제자백가", "포트폴리오"],
@@ -212,6 +212,11 @@
       }
     }
 
+    if (students.length === 0) {
+      alert("저장할 데이터가 없습니다. 표에 학번과 이름을 최소 1명 이상 입력하셨는지 확인해주세요!");
+      return;
+    }
+
     const payload = { subjects: subjects, students: students };
     document.getElementById('saveLoading').style.display = 'block';
     
@@ -227,12 +232,12 @@
         document.getElementById('saveSuccess').style.display = 'block';
         setTimeout(() => { document.getElementById('saveSuccess').style.display = 'none'; }, 5000);
       } else {
-        alert("서버 연결은 되었으나 데이터 처리에 실패했습니다.");
+        alert("⚠️ 구글 서버 오류 메시지:\n\n" + data.message);
       }
     })
     .catch(error => {
       document.getElementById('saveLoading').style.display = 'none';
-      alert('통신 오류입니다. 깃허브 URL 설정이나 시트 탭 이름이 "점수"가 맞는지 다시 확인해주세요!');
+      alert('통신 오류가 발생했습니다. WEB_APP_URL 주소를 확인해주세요.');
     });
   }
 
